@@ -64,11 +64,39 @@ String SO421::getMetadata()
 	// 		if(i < 7) uuid = uuid + "-"; //Print formatting chracter, don't print on last pass
 	// 	}
 	// }
-
+	uint8_t adr = (talon.sendCommand("?!")).toInt(); //Get address of local device 
+	String id = talon.command("I", adr);
+	Serial.println(id); //DEBUG!
+	String sdi12Version;
+	String mfg;
+	String model;
+	String senseVersion;
+	String sn;
+	if((id.substring(0, 1)).toInt() != adr) { //If address returned is not the same as the address read, throw error
+		Serial.println("ADDRESS MISMATCH!"); //DEBUG!
+		//Throw error!
+		sdi12Version = "null";
+		mfg = "null";
+		model = "null";
+		senseVersion = "null";
+		sn = "null";
+	}
+	else {
+		sdi12Version = (id.substring(1,3)).trim(); //Grab SDI-12 version code
+		mfg = (id.substring(3, 11)).trim(); //Grab manufacturer
+		model = (id.substring(11,17)).trim(); //Grab sensor model name
+		senseVersion = (id.substring(17,20)).trim(); //Grab version number
+		sn = (id.substring(20,33)).trim(); //Grab the serial number 
+	}
 	String metadata = "{\"Apogee O2\":{";
 	// if(error == 0) metadata = metadata + "\"SN\":\"" + uuid + "\","; //Append UUID only if read correctly, skip otherwise 
-	metadata = metadata + "\"Hardware\":\"v" + String(version >> 4, HEX) + "." + String(version & 0x0F, HEX) + "\","; //Report version as modded BCD
+	metadata = metadata + "\"Hardware\":\"" + senseVersion + "\","; //Report sensor version pulled from SDI-12 system 
 	metadata = metadata + "\"Firmware\":\"" + FIRMWARE_VERSION + "\","; //Static firmware version 
+	metadata = metadata + "\"SDI12_Ver\":\"" + sdi12Version.substring(0,1) + "." + sdi12Version.substring(1,2) + "\",";
+	metadata = metadata + "\"ADR\":" + String(adr) + ",";
+	metadata = metadata + "\"Mfg\":\"" + mfg + "\",";
+	metadata = metadata + "\"Model\":\"" + model + "\",";
+	metadata = metadata + "\"SN\":\"" + sn + "\",";
 	//GET SERIAL NUMBER!!!! //FIX!
 	metadata = metadata + "\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
 	metadata = metadata + "}}"; //CLOSE  
@@ -81,8 +109,37 @@ String SO421::getData(time_t time)
 	float pressure;
 	uint8_t oversampling = 7;
 	int16_t ret;
-	
+
+	uint8_t adr = (talon.sendCommand("?!")).toInt(); //Get address of local device 
+	String stat = talon.command("M", adr);
+	Serial.print("STAT: "); //DEBUG!
+	Serial.println(stat);
+
+	delay(1000); //Wait 1 second to get data back
+	String data = talon.command("D0", adr);
+	Serial.print("DATA: "); //DEBUG!
+	Serial.println(data);
+
 	String output = "{\"Apogee O2\":{"; //OPEN JSON BLOB
+
+	float sensorData[3] = {0.0}; //Store the 3 vals from the sensor in float form
+	if((data.substring(0, data.indexOf("+"))).toInt() != adr) { //If address returned is not the same as the address read, throw error
+		Serial.println("ADDRESS MISMATCH!"); //DEBUG!
+		//Throw error!
+	}
+	data.remove(0, 2); //Delete address from start of string
+	for(int i = 0; i < 3; i++) { //Parse string into floats -- do this to run tests on the numbers themselves and make sure formatting is clean
+		if(data.indexOf("+") > 0) {
+			sensorData[i] = (data.substring(0, data.indexOf("+"))).toFloat();
+			Serial.println(data.substring(0, data.indexOf("+"))); //DEBUG!
+			data.remove(0, data.indexOf("+") + 1); //Delete leading entry
+		}
+		else {
+			data.trim(); //Trim off trailing characters
+			sensorData[i] = data.toFloat();
+		}
+	}
+	output = output + "\"Oxygen_%\":" + String(sensorData[0]) + ",\"Oxygen_mV\":" + String(sensorData[1]) + ",\"Temperature\":" + String(sensorData[2]); //Concatonate data
 	// String dps368Data = "\"DPS368\":{\"Temperature\":"; //Open dps368 substring
 	// String sht3xData = "\"SHT31\":{\"Temperature\":"; //Open SHT31 substring //FIX! How to deal with SHT31 vs SHT35?? Do we deal with it at all
 
@@ -160,7 +217,7 @@ String SO421::getData(time_t time)
 	// // }
 	
 	// output = output + dps368Data + "," + sht3xData + ",";
-	output = output + "\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
+	output = output + ",\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
 	output = output + "}}"; //CLOSE JSON BLOB
 	Serial.println(output); //DEBUG!
 	return output;
@@ -179,11 +236,12 @@ bool SO421::isPresent()
 	uint8_t adr = (talon.sendCommand("?!")).toInt();
 	
 	String id = talon.command("I", adr);
+	id.remove(0, 1); //Trim address character from start
 	Serial.print("SDI12 Address: "); //DEBUG!
 	Serial.print(adr);
 	Serial.print(",");
 	Serial.println(id);
-	if(id.startsWith("13Apogee SO-420")) return true;
+	if(id.startsWith("14Apogee  SO-421")) return true;
 	// if(errorA == 0 || errorB == 0) return true;
 	else return false;
 }
