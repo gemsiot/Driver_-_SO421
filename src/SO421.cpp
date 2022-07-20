@@ -241,7 +241,7 @@ bool SO421::isPresent()
 	Serial.print(adr);
 	Serial.print(",");
 	Serial.println(id);
-	if(id.startsWith("14Apogee  SO-421")) return true;
+	if(id.indexOf("SO-4") > 0) return true; //FIX! Check version here!
 	// if(errorA == 0 || errorB == 0) return true;
 	else return false;
 }
