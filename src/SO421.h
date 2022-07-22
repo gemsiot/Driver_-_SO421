@@ -1,8 +1,8 @@
 #ifndef SO421_h
 #define SO421_h
 
-#include "DPS368-Library-Arduino/src/Dps368.h"
-#include "Adafruit_SHT31/src/Adafruit_SHT31.h"
+// #include "DPS368-Library-Arduino/src/Dps368.h"
+// #include "Adafruit_SHT31/src/Adafruit_SHT31.h"
 #include <Sensor.h>
 #include <SDI12Talon.h>
 
@@ -47,8 +47,8 @@ class SO421: public Sensor
 
 		// const uint8_t sensorInterface = BusType::I2C; 
 	private:
-		Dps368 presSensor = Dps368();
-		Adafruit_SHT31 rhSensor = Adafruit_SHT31();
+		// Dps368 presSensor = Dps368();
+		// Adafruit_SHT31 rhSensor = Adafruit_SHT31();
 		SDI12Talon& talon;
 		// uint8_t port = 0;
 		// int throwError(uint32_t error);
