@@ -1,10 +1,8 @@
 #include <SO421.h>
 
-SO421::SO421(SDI12Talon& talon_, uint8_t talonPort_, uint8_t sensorPort_, uint8_t version): talon(talon_)
+SO421::SO421(SDI12Talon& talon_, uint8_t sensorPort_): SDI12TalonSensor(talon_)
 {
 	//Only update values if they are in range, otherwise stick with default values
-	if(talonPort_ > 0) talonPort = talonPort_ - 1;
-	else talonPort = 255; //Reset to null default if not in range
 	if(sensorPort_ > 0) sensorPort = sensorPort_ - 1;
 	else sensorPort = 255; //Reset to null default if not in range 
 	sensorInterface = BusType::SDI12; 
@@ -41,66 +39,6 @@ String SO421::begin(time_t time, bool &criticalFault, bool &fault)
 	// 	Serial.println("");
 	// }
 	return "{}"; //DEBUG!
-}
-
-String SO421::getMetadata()
-{
-	// Wire.beginTransmission(0x58); //Write to UUID range of EEPROM
-	// Wire.write(0x98); //Point to start of UUID
-	// int error = Wire.endTransmission();
-	// // uint64_t uuid = 0;
-	// String uuid = "";
-
-	// if(error != 0) throwError(EEPROM_I2C_ERROR | error);
-	// else {
-	// 	uint8_t val = 0;
-	// 	Wire.requestFrom(0x58, 8); //EEPROM address
-	// 	for(int i = 0; i < 8; i++) {
-	// 		val = Wire.read();//FIX! Wait for result??
-	// 		// uuid = uuid | (val << (8 - i)); //Concatonate into full UUID
-	// 		uuid = uuid + String(val, HEX); //Print out each hex byte
-	// 		// Serial.print(Val, HEX); //Print each hex byte from left to right
-	// 		// if(i < 7) Serial.print('-'); //Print formatting chracter, don't print on last pass
-	// 		if(i < 7) uuid = uuid + "-"; //Print formatting chracter, don't print on last pass
-	// 	}
-	// }
-	uint8_t adr = (talon.sendCommand("?!")).toInt(); //Get address of local device 
-	String id = talon.command("I", adr);
-	Serial.println(id); //DEBUG!
-	String sdi12Version;
-	String mfg;
-	String model;
-	String senseVersion;
-	String sn;
-	if((id.substring(0, 1)).toInt() != adr) { //If address returned is not the same as the address read, throw error
-		Serial.println("ADDRESS MISMATCH!"); //DEBUG!
-		//Throw error!
-		sdi12Version = "null";
-		mfg = "null";
-		model = "null";
-		senseVersion = "null";
-		sn = "null";
-	}
-	else {
-		sdi12Version = (id.substring(1,3)).trim(); //Grab SDI-12 version code
-		mfg = (id.substring(3, 11)).trim(); //Grab manufacturer
-		model = (id.substring(11,17)).trim(); //Grab sensor model name
-		senseVersion = (id.substring(17,20)).trim(); //Grab version number
-		sn = (id.substring(20,33)).trim(); //Grab the serial number 
-	}
-	String metadata = "{\"Apogee O2\":{";
-	// if(error == 0) metadata = metadata + "\"SN\":\"" + uuid + "\","; //Append UUID only if read correctly, skip otherwise 
-	metadata = metadata + "\"Hardware\":\"" + senseVersion + "\","; //Report sensor version pulled from SDI-12 system 
-	metadata = metadata + "\"Firmware\":\"" + FIRMWARE_VERSION + "\","; //Static firmware version 
-	metadata = metadata + "\"SDI12_Ver\":\"" + sdi12Version.substring(0,1) + "." + sdi12Version.substring(1,2) + "\",";
-	metadata = metadata + "\"ADR\":" + String(adr) + ",";
-	metadata = metadata + "\"Mfg\":\"" + mfg + "\",";
-	metadata = metadata + "\"Model\":\"" + model + "\",";
-	metadata = metadata + "\"SN\":\"" + sn + "\",";
-	//GET SERIAL NUMBER!!!! //FIX!
-	metadata = metadata + "\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
-	metadata = metadata + "}}"; //CLOSE  
-	return metadata; 
 }
 
 String SO421::getData(time_t time)
@@ -223,7 +161,7 @@ String SO421::getData(time_t time)
 	return output;
 }
 
-bool SO421::isPresent() 
+bool SO421::isPresent(SDI12Talon& talon, uint8_t sensorPort)
 { //FIX!
 	// Wire.beginTransmission(0x77);
 	// int errorA = Wire.endTransmission();

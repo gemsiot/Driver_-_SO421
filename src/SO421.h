@@ -1,12 +1,9 @@
 #ifndef SO421_h
 #define SO421_h
 
-// #include "DPS368-Library-Arduino/src/Dps368.h"
-// #include "Adafruit_SHT31/src/Adafruit_SHT31.h"
-#include <Sensor.h>
-#include <SDI12Talon.h>
+#include <SDI12TalonSensor.h>
 
-class SO421: public Sensor
+class SO421: public SDI12TalonSensor
 {
 	constexpr static int DEAFULT_PORT = 2; ///<Use port 2 by default
 	constexpr static int DEFAULT_SENSOR_PORT = 0; ///<Use port 0 by default
@@ -23,12 +20,13 @@ class SO421: public Sensor
 	const uint32_t SHT3X_I2C_ERROR = 0x10020000; //FIX! Error subtype = I2C error code
 
 	public:
-		SO421(SDI12Talon& talon_, uint8_t talonPort_ = DEAFULT_PORT, uint8_t sensorPort_ = DEFAULT_SENSOR_PORT, uint8_t version = DEFAULT_VERSION);
+		SO421(SDI12Talon& talon_, uint8_t sensorPort_);
 		String begin(time_t time, bool &criticalFault, bool &fault);
 		String getData(time_t time);
-		String getMetadata();
 		String getErrors();
-		bool isPresent();
+		static bool isPresent(SDI12Talon& talon, uint8_t sensorPort);
+		const char* name() override { return "Apogee O2"; }
+		const char* firmwareVersion() override { return FIRMWARE_VERSION; }
 		// uint8_t getTalonPort() {
 		// 	if(talonPort < 255) return talonPort + 1;
 		// 	else return 0;
@@ -47,9 +45,6 @@ class SO421: public Sensor
 
 		// const uint8_t sensorInterface = BusType::I2C; 
 	private:
-		// Dps368 presSensor = Dps368();
-		// Adafruit_SHT31 rhSensor = Adafruit_SHT31();
-		SDI12Talon& talon;
 		// uint8_t port = 0;
 		// int throwError(uint32_t error);
 
