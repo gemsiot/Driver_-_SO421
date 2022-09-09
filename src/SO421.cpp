@@ -40,7 +40,7 @@ String SO421::begin(time_t time, bool &criticalFault, bool &fault)
 	// 	if(errorB != 0) Serial.print("B\t");
 	// 	Serial.println("");
 	// }
-	return "{}"; //DEBUG!
+	return ""; //DEBUG!
 }
 
 String SO421::getMetadata()
@@ -88,7 +88,7 @@ String SO421::getMetadata()
 		senseVersion = (id.substring(17,20)).trim(); //Grab version number
 		sn = (id.substring(20,33)).trim(); //Grab the serial number 
 	}
-	String metadata = "{\"Apogee O2\":{";
+	String metadata = "\"Apogee O2\":{";
 	// if(error == 0) metadata = metadata + "\"SN\":\"" + uuid + "\","; //Append UUID only if read correctly, skip otherwise 
 	metadata = metadata + "\"Hardware\":\"" + senseVersion + "\","; //Report sensor version pulled from SDI-12 system 
 	metadata = metadata + "\"Firmware\":\"" + FIRMWARE_VERSION + "\","; //Static firmware version 
@@ -99,7 +99,7 @@ String SO421::getMetadata()
 	metadata = metadata + "\"SN\":\"" + sn + "\",";
 	//GET SERIAL NUMBER!!!! //FIX!
 	metadata = metadata + "\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
-	metadata = metadata + "}}"; //CLOSE  
+	metadata = metadata + "}"; //CLOSE  
 	return metadata; 
 }
 
@@ -120,7 +120,7 @@ String SO421::getData(time_t time)
 	Serial.print("DATA: "); //DEBUG!
 	Serial.println(data);
 
-	String output = "{\"Apogee O2\":{"; //OPEN JSON BLOB
+	String output = "\"Apogee O2\":{"; //OPEN JSON BLOB
 
 	float sensorData[3] = {0.0}; //Store the 3 vals from the sensor in float form
 	if((data.substring(0, data.indexOf("+"))).toInt() != adr) { //If address returned is not the same as the address read, throw error
@@ -218,7 +218,7 @@ String SO421::getData(time_t time)
 	
 	// output = output + dps368Data + "," + sht3xData + ",";
 	output = output + ",\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
-	output = output + "}}"; //CLOSE JSON BLOB
+	output = output + "}"; //CLOSE JSON BLOB
 	Serial.println(output); //DEBUG!
 	return output;
 }
@@ -299,7 +299,7 @@ String SO421::getErrors()
 	// 	}
 	// 	return 0; //Return success indication
 	// }
-	String output = "{\"Apogee O2\":{"; // OPEN JSON BLOB
+	String output = "\"Apogee O2\":{"; // OPEN JSON BLOB
 	output = output + "\"CODES\":["; //Open codes pair
 
 	for(int i = 0; i < min(MAX_NUM_ERRORS, numErrors); i++) { //Interate over used element of array without exceeding bounds
@@ -315,7 +315,7 @@ String SO421::getErrors()
 	else output = output + "0,"; //Otherwise set it as clear
 	output = output + "\"NUM\":" + String(numErrors) + ","; //Append number of errors
 	output = output + "\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
-	output = output + "}}"; //CLOSE JSON BLOB
+	output = output + "}"; //CLOSE JSON BLOB
 	numErrors = 0; //Clear error count
 	return output;
 
