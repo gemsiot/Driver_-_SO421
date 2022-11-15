@@ -157,7 +157,8 @@ String SO421::getData(time_t time)
 			break;
 		}
 		if(readDone == false) throwError(talon.SDI12_READ_FAIL); //Only throw read error if sensor SHOULD be detected 
-	} 
+	}
+	else throwError(FIND_FAIL); 
 	if(getSensorPort() == 0 || readDone == false) output = output + "\"Oxygen_%\":null,\"Oxygen_mV\":null,\"Temperature\":null"; //Append nulls if no sensor port found, or read did not work
 	
 
