@@ -105,118 +105,82 @@ String SO421::getMetadata()
 
 String SO421::getData(time_t time)
 {
-	float temperatureDPS368;
-	float pressure;
-	uint8_t oversampling = 7;
-	int16_t ret;
-
-	uint8_t adr = (talon.sendCommand("?!")).toInt(); //Get address of local device 
-	String stat = talon.command("M", adr);
-	Serial.print("STAT: "); //DEBUG!
-	Serial.println(stat);
-
-	delay(1000); //Wait 1 second to get data back
-	String data = talon.command("D0", adr);
-	Serial.print("DATA: "); //DEBUG!
-	Serial.println(data);
-
 	String output = "\"Apogee O2\":{"; //OPEN JSON BLOB
+	bool readDone = false;
+	if(getSensorPort() != 0) { //Check both for detection 
+		for(int i = 0; i < talon.retryCount; i++) {
+			if(!isPresent()) continue; //If presence check fails, try again
+	// uint8_t adr = (talon.sendCommand("?!")).toInt(); //Get address of local device 
+	// String stat = talon.command("M", adr);
+	// Serial.print("STAT: "); //DEBUG!
+	// Serial.println(stat);
+			int adr = talon.getAddress();
+			if(adr < 0) {
+				Serial.print("SO421 ADR = "); //DEBUG!
+				Serial.println(adr);
+				continue; //If address is out of range, try again
+			}
+			int waitTime = talon.startMeasurmentCRC(adr);
+			if(waitTime <= 0) {
+				Serial.print("SO421 Wait Time = "); //DEBUG!
+				Serial.println(waitTime);
+				continue; //If wait time out of range, try again
+			}
+			delay(waitTime*1000 + 500); //Wait for number of seconds requested, plus half a second to make sure
+			String data = talon.command("D0", adr);
+			Serial.print("DATA: "); //DEBUG!
+			Serial.println(data);
 
-	float sensorData[3] = {0.0}; //Store the 3 vals from the sensor in float form
-	if((data.substring(0, data.indexOf("+"))).toInt() != adr) { //If address returned is not the same as the address read, throw error
-		Serial.println("ADDRESS MISMATCH!"); //DEBUG!
-		//Throw error!
-	}
-	data.remove(0, 2); //Delete address from start of string
-	for(int i = 0; i < 3; i++) { //Parse string into floats -- do this to run tests on the numbers themselves and make sure formatting is clean
-		if(data.indexOf("+") > 0) {
-			sensorData[i] = (data.substring(0, data.indexOf("+"))).toFloat();
-			Serial.println(data.substring(0, data.indexOf("+"))); //DEBUG!
-			data.remove(0, data.indexOf("+") + 1); //Delete leading entry
+			if(!talon.testCRC(data)) continue; //If CRC is bad, try again
+
+			float sensorData[3] = {0.0}; //Store the 5 vals from the sensor in float form
+			if((data.substring(0, data.indexOf("+"))).toInt() != adr) { //If address returned is not the same as the address read, throw error
+				Serial.println("ADDRESS MISMATCH!"); //DEBUG!
+				throwError(talon.SDI12_SENSOR_MISMATCH | 0x100 | talonPortErrorCode | sensorPortErrorCode); //Throw error on address change, this is a weird place for this error to happen, but could
+				continue; //Try again
+				//Throw error!
+			}
+			data.remove(0, 2); //Delete address from start of string
+			for(int i = 0; i < 3; i++) { //Parse string into floats -- do this to run tests on the numbers themselves and make sure formatting is clean
+				if(indexOfSep(data) > 0) {
+					sensorData[i] = (data.substring(0, indexOfSep(data))).toFloat();
+					Serial.println(data.substring(0, indexOfSep(data))); //DEBUG!
+					data.remove(0, indexOfSep(data) + 1); //Delete leading entry
+				}
+				else {
+					data.trim(); //Trim off trailing characters
+					sensorData[i] = data.toFloat();
+				}
+			}
+			output = output + "\"Oxygen_%\":" + String(sensorData[0]) + ",\"Oxygen_mV\":" + String(sensorData[1]) + ",\"Temperature\":" + String(sensorData[2]); //Concatonate data
+			readDone = true; //Set flag 
+			break;
 		}
-		else {
-			data.trim(); //Trim off trailing characters
-			sensorData[i] = data.toFloat();
-		}
-	}
-	output = output + "\"Oxygen_%\":" + String(sensorData[0]) + ",\"Oxygen_mV\":" + String(sensorData[1]) + ",\"Temperature\":" + String(sensorData[2]); //Concatonate data
-	// String dps368Data = "\"DPS368\":{\"Temperature\":"; //Open dps368 substring
-	// String sht3xData = "\"SHT31\":{\"Temperature\":"; //Open SHT31 substring //FIX! How to deal with SHT31 vs SHT35?? Do we deal with it at all
-
-	// //lets the Dps368 perform a Single temperature measurement with the last (or standard) configuration
-	// //The result will be written to the paramerter temperature
-	// //ret = Dps368PressureSensor.measureTempOnce(temperature);
-	// //the commented line below does exactly the same as the one above, but you can also config the precision
-	// //oversampling can be a value from 0 to 7
-	// //the Dps 368 will perform 2^oversampling internal temperature measurements and combine them to one result with higher precision
-	// //measurements with higher precision take more time, consult datasheet for more information
-	// // Wire.beginTransmission(0x77);
-	// // int errorA = Wire.endTransmission();
-	// // Wire.beginTransmission(0x76);
-	// // int errorB = Wire.endTransmission();
-	// bool dummy1;
-	// bool dummy2;
-	// begin(0, dummy1, dummy2); //DEBUG!
-	// ret = presSensor.measureTempOnce(temperatureDPS368, oversampling); //Measure temp
-	// if(ret == 0) { //If no error in read
-	// 	dps368Data = dps368Data + String(temperatureDPS368,2) + ","; //Append temp with 2 decimal points since resolution is 0.01°C, add comma
-	// 	// dps368Data = dps368Data + "Pressure" + String()
-	// }
-	// else {
-	// 	dps368Data = dps368Data + "null,"; //Append null as non-report 
-	// 	throwError(DPS368_READ_ERROR | 0x1000 | talonPortErrorCode | sensorPortErrorCode); //Error subtype = temp
-	// 	//FIX! Throw error
-	// }
-	// ret = presSensor.measurePressureOnce(pressure, oversampling); //Measure pressure 
-	// if(ret == 0) { //If no error in read
-	// 	dps368Data = dps368Data + "\"Pressure\":" + String(pressure/100.0,3); //Append pressure (divided from Pa to hPa, which is equal to mBar) with 3 decimal points since resolution is 0.002hPa
-	// }
-	// else {
-	// 	dps368Data = dps368Data + "\"Pressure\":null"; //Append null as non-report
-	// 	throwError(DPS368_READ_ERROR | 0x2000 | talonPortErrorCode | sensorPortErrorCode); //Error subtype = pres
-	// 	//FIX! Throw error
-	// }
-	// dps368Data = dps368Data + "}"; //Close DPS368 substring
-
-	// float temperatureSHT3x = rhSensor.readTemperature();
-  	// float humidity = rhSensor.readHumidity();
-
-	// if(!isnan(temperatureSHT3x)) { //If no error in read
-	// 	sht3xData = sht3xData + String(temperatureSHT3x,2) + ","; //Append temp with 2 decimal points since resolution is 0.01°C, add comma
-	// 	// dps368Data = dps368Data + "Pressure" + String()
-	// }
-	// else {
-	// 	sht3xData = sht3xData + "null,"; //Append null as non-report 
-	// 	Wire.beginTransmission(0x76);
-	// 	int error = Wire.endTransmission();
-	// 	if(error == 0) throwError(SHT3X_NAN_ERROR | 0x1000 | talonPortErrorCode | sensorPortErrorCode); //Error subtype = temp
-	// 	else throwError(SHT3X_I2C_ERROR | (error << 12) | talonPortErrorCode | sensorPortErrorCode); //Error subtype = I2C error
-		
-	// 	//FIX! Throw error
-	// }
-
-	// if(!isnan(humidity)) { //If no error in read
-	// 	sht3xData = sht3xData + "\"Humidity\":" + String(humidity,2); //Append humidity with 2 decimal points since resolution is 0.01%
-	// }
-	// else {
-	// 	sht3xData = sht3xData + "\"Humidity\":null"; //Append null as non-report
-	// 	Wire.beginTransmission(0x76);
-	// 	int error = Wire.endTransmission();
-	// 	if(error == 0) throwError(SHT3X_NAN_ERROR | 0x2000 | talonPortErrorCode | sensorPortErrorCode); //Error subtype = RH
-	// 	else throwError(SHT3X_I2C_ERROR | (error << 12) | talonPortErrorCode | sensorPortErrorCode); //Error subtype = I2C error
-	// }
-	// sht3xData = sht3xData + "}"; //Close SHT3x substring
-
-	// // Serial.print("TEMP: ");
-	// // if(errorA == 0 || errorB == 0) Serial.println(temperature); 
-	// // else {
-	// // 	Serial.print("ERR - ");
-	// // 	if(errorA != 0) Serial.print("A\t");
-	// // 	if(errorB != 0) Serial.print("B\t");
-	// // 	Serial.println("");
-	// // }
+		if(readDone == false) throwError(talon.SDI12_READ_FAIL); //Only throw read error if sensor SHOULD be detected 
+	} 
+	if(getSensorPort() == 0 || readDone == false) output = output + "\"Oxygen_%\":null,\"Oxygen_mV\":null,\"Temperature\":null"; //Append nulls if no sensor port found, or read did not work
 	
-	// output = output + dps368Data + "," + sht3xData + ",";
+
+	
+
+	// float sensorData[3] = {0.0}; //Store the 3 vals from the sensor in float form
+	// if((data.substring(0, data.indexOf("+"))).toInt() != adr) { //If address returned is not the same as the address read, throw error
+	// 	Serial.println("ADDRESS MISMATCH!"); //DEBUG!
+	// 	//Throw error!
+	// }
+	// data.remove(0, 2); //Delete address from start of string
+	// for(int i = 0; i < 3; i++) { //Parse string into floats -- do this to run tests on the numbers themselves and make sure formatting is clean
+	// 	if(data.indexOf("+") > 0) {
+	// 		sensorData[i] = (data.substring(0, data.indexOf("+"))).toFloat();
+	// 		Serial.println(data.substring(0, data.indexOf("+"))); //DEBUG!
+	// 		data.remove(0, data.indexOf("+") + 1); //Delete leading entry
+	// 	}
+	// 	else {
+	// 		data.trim(); //Trim off trailing characters
+	// 		sensorData[i] = data.toFloat();
+	// 	}
+	// }
+	
 	output = output + ",\"Pos\":[" + getTalonPortString() + "," + getSensorPortString() + "]"; //Concatonate position 
 	output = output + "}"; //CLOSE JSON BLOB
 	Serial.println(output); //DEBUG!
@@ -244,6 +208,14 @@ bool SO421::isPresent()
 	if(id.indexOf("SO-4") > 0) return true; //FIX! Check version here!
 	// if(errorA == 0 || errorB == 0) return true;
 	else return false;
+}
+
+int SO421::indexOfSep(String input)
+{
+	int pos1 = input.indexOf('+');
+	int pos2 = input.indexOf('-');
+	if(pos1 >= 0 && pos2 >= 0) return min(pos1, pos2); //If both are positive, just return the straight min
+	else return max(pos1, pos2); //If one of them is -1, then return the other one. If both are -1, then you should return -1 anyway
 }
 
 // void SO421::setTalonPort(uint8_t port)

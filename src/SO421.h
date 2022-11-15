@@ -50,6 +50,7 @@ class SO421: public Sensor
 		// Dps368 presSensor = Dps368();
 		// Adafruit_SHT31 rhSensor = Adafruit_SHT31();
 		SDI12Talon& talon;
+		int indexOfSep(String input);
 		// uint8_t port = 0;
 		// int throwError(uint32_t error);
 
