@@ -140,12 +140,12 @@ String SO421::getData(time_t time)
 				continue; //Try again
 				//Throw error!
 			}
-			data.remove(0, 2); //Delete address from start of string
+			data.remove(0, 1); //Delete address from start of string
 			for(int i = 0; i < 3; i++) { //Parse string into floats -- do this to run tests on the numbers themselves and make sure formatting is clean
-				if(indexOfSep(data) > 0) {
-					sensorData[i] = (data.substring(0, indexOfSep(data))).toFloat();
-					Serial.println(data.substring(0, indexOfSep(data))); //DEBUG!
-					data.remove(0, indexOfSep(data) + 1); //Delete leading entry
+				if(indexOfSep(data) == 0 && indexOfSep(data.substring(indexOfSep(data) + 1)) > 0) { //If string starts with seperator AND this is not the last seperator 
+					sensorData[i] = (data.substring(0, indexOfSep(data.substring(indexOfSep(data) + 1)) + 1)).toFloat(); //Extract float from between next two seperators
+					Serial.println(data.substring(0, indexOfSep(data.substring(indexOfSep(data) + 1)) + 1)); //DEBUG!
+					data.remove(0, indexOfSep(data.substring(indexOfSep(data) + 1)) + 1); //Delete leading entry
 				}
 				else {
 					data.trim(); //Trim off trailing characters
