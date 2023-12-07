@@ -1,3 +1,5 @@
+//© 2023 Regents of the University of Minnesota. All rights reserved.
+
 #ifndef SO421_h
 #define SO421_h
 
